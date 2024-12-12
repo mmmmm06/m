@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>การคำนวณ SAM </title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        label, select, input {
+            margin: 10px 0;
+            display: block;
+        }
+        .result {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        .machine-group {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>ระบบช่วยคำนวณ SAM (Standard allowed minute) </h1>
+    <form id="calculationForm">
+        <label for="capturedTime">เวลารวมที่จับได้ (นาที):</label>
+        <input type="number" id="capturedTime" required step="0.01">
+
+        <div id="machineInputs">
+            <div class="machine-group">
+                <label for="machineType1">ประเภทงาน (เลือกชนิดจักร):</label>
+                <select class="machineType" required>
+                    <option value="">-- เลือกประเภทงาน --</option>
+                    <option value="1.2">จักรเดี่ยว (SN)</option>
+                    <option value="1.15">จักรลาหรือจักรโพ้ง</option>
+                    <option value="1.15">แท็กกิ้ง</option>
+                    <option value="1.05">งานมือ</option>
+                    <option value="1.1">เก็บเศษด้าย</option>
+                </select>
+
+                <label for="steps1">จำนวนขั้นตอน:</label>
+                <input type="number" class="steps" required min="1">
+            </div>
+        </div>
+
+        <button type="button" onclick="addMachine()">เพิ่มประเภทจักร</button>
+        <button type="button" onclick="removeMachine()">ลบประเภทจักร</button>
+
+        <label for="totalEmployees">จำนวนพนักงาน:</label>
+        <input type="number" id="totalEmployees" required>
+
+        <label for="totalWork">จำนวนงานทั้งหมด:</label>
+        <input type="number" id="totalWork" required>
+
+        <button type="button" onclick="calculate()">คำนวณ</button>
+    </form>
+
+    <div class="result" id="result"></div>
+
+    <script>
+        function addMachine() {
+            const machineInputs = document.getElementById("machineInputs");
+            const newMachine = document.createElement("div");
+            newMachine.classList.add("machine-group");
+            newMachine.innerHTML = `
+                <label>ประเภทงาน (เลือกชนิดจักร):</label>
+                <select class="machineType" required>
+                    <option value="">-- เลือกประเภทงาน --</option>
+                    <option value="1.2">จักรเดี่ยว (SN)</option>
+                    <option value="1.15">จักรลาหรือจักรโพ้ง</option>
+                    <option value="1.15">แท็กกิ้ง</option>
+                    <option value="1.05">งานมือ</option>
+                    <option value="1.1">เก็บเศษด้าย</option>
+                </select>
+                <label>จำนวนขั้นตอน:</label>
+                <input type="number" class="steps" required min="1">
+            `;
+            machineInputs.appendChild(newMachine);
+        }
+
+        function removeMachine() {
+            const machineInputs = document.getElementById("machineInputs");
+            if (machineInputs.children.length > 1) {
+                machineInputs.removeChild(machineInputs.lastChild);
+            } else {
+                alert("ต้องมีอย่างน้อย 1 ประเภทจักร");
+            }
+        }
+
+        function calculate() {
+            const capturedTime = parseFloat(document.getElementById("capturedTime").value);
+            const totalEmployees = parseInt(document.getElementById("totalEmployees").value);
+            const totalWork = parseInt(document.getElementById("totalWork").value);
+            const workTimePerDay = 540; // ค่าคงที่
+
+            if (isNaN(capturedTime) || isNaN(totalEmployees) || isNaN(totalWork)) {
+                alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+                return;
+            }
+
+            // รวบรวมข้อมูลจักร
+            const machineGroups = document.querySelectorAll(".machine-group");
+            let totalSteps = 0;
+            let samTotal = 0;
+
+            machineGroups.forEach(group => {
+                const multiplier = parseFloat(group.querySelector(".machineType").value);
+                const steps = parseInt(group.querySelector(".steps").value);
+
+                if (isNaN(multiplier) || isNaN(steps)) {
+                    alert("กรุณากรอกข้อมูลให้ครบถ้วนสำหรับทุกจักร");
+                    return;
+                }
+
+                totalSteps += steps; // รวมจำนวนขั้นตอนทั้งหมด
+            });
+
+            // คำนวณ SAM ตามสัดส่วน
+            machineGroups.forEach(group => {
+                const multiplier = parseFloat(group.querySelector(".machineType").value);
+                const steps = parseInt(group.querySelector(".steps").value);
+                const timeForMachine = (steps / totalSteps) * capturedTime; // เวลาของจักรแต่ละประเภท
+                samTotal += timeForMachine * multiplier; // คำนวณ SAM รวม
+            });
+
+            // คำนวณเป้าหมาย
+            const targetPerDay = Math.floor((workTimePerDay / samTotal) * totalEmployees);
+            const daysRequired = Math.ceil(totalWork / targetPerDay);
+
+            // แสดงผลลัพธ์
+            const resultDiv = document.getElementById("result");
+            resultDiv.innerHTML = `
+                <p>SAM รวม: ${samTotal.toFixed(3)} นาที</p>
+                <p>เป้าหมายต่อวัน (ทั้งหมด): ${targetPerDay} ชิ้น</p>
+                <p>จำนวนวันที่ต้องทำงาน: ${daysRequired} วัน</p>
+                <p>ชั่วโมงการทำงานทั้งหมด: ${(daysRequired * workTimePerDay / 60).toFixed(2)} ชั่วโมง</p>
+            `;
+        }
+    </script>
+</body>
+</html>
